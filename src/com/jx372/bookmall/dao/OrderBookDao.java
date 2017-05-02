@@ -9,9 +9,9 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.jx372.bookmall.vo.OrderVo;
+import com.jx372.bookmall.vo.OrderBookVo;
 
-public class OrderDao {
+public class OrderBookDao {
 	private Connection getConnection() throws SQLException {
 
 		Connection conn = null;
@@ -30,25 +30,27 @@ public class OrderDao {
 		return conn;
 	}
 	
-	public boolean insert(OrderVo orderVo) {
+	public boolean insert(OrderBookVo orderBookVo) {
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		try {
 			conn = getConnection();
-			
-			
-			
-			String sql = "insert into orders values(null,(select no from member where no=?),?,?)";
-
+						
+			String sql = "insert into order_book values("+
+					 	" (select no from orders where no=?),"+ 
+						" (select no from book where no=?),"+
+						 " ?)";
 			pstmt = conn.prepareStatement(sql);
-			pstmt.setInt(1, orderVo.getMemberNo());
-			pstmt.setInt(2, orderVo.getOrderPrice());
-			pstmt.setString(3, orderVo.getAddress());
-				
+			
+			pstmt.setInt(1, orderBookVo.getOrderNo());
+			pstmt.setInt(2, orderBookVo.getBookNo());
+			pstmt.setInt(3, orderBookVo.getStock());
+						
 			int count = pstmt.executeUpdate();
+			//conn.commit();
 			
 			return count == 1;
-
+			
 		} catch (SQLException e) {
 			System.out.println("error" + e);
 			return false;
@@ -67,8 +69,8 @@ public class OrderDao {
 		}
 	}
 
-	public List<OrderVo> getList() {
-		List list = new ArrayList<OrderVo>();
+	public List<OrderBookVo> getList() {
+		List list = new ArrayList<OrderBookVo>();
 
 		ResultSet rs = null;
 		Connection conn = null;
@@ -82,30 +84,24 @@ public class OrderDao {
 			stmt = conn.createStatement();
 
 			// 4. run SQL
-			String sql = "select o.no, m.name, m.email, (b.price*c.stock)as total, o.address"+
-						" from member m, book b, orders o, cart c"+
-						" where m.no=o.mem_no"+
-						" and c.book_no = b.no"+
-						" and c.mem_no = m.no";
+			String sql = "select b.no, b.title, c.stock"+
+							" from book b, cart c"+
+							" where b.no = c.book_no";
 			rs = stmt.executeQuery(sql); 
-
+			
 			// 5. fetch row( row한개씩 가져오기)
 			while (rs.next()) {
+				Integer bookNo = rs.getInt(1);
+				String bookTitle = rs.getString(2);
+				Integer stock = rs.getInt(3);
 				
-				Integer orderNo = rs.getInt(1);
-				String memberName = rs.getString(2);
-				String email = rs.getString(3);
-				Integer orderPrice = rs.getInt(4);
-				String address = rs.getString(5);
-
-				OrderVo orderVo = new OrderVo();
-				orderVo.setNo(orderNo);
-				orderVo.setMemberName(memberName);
-				orderVo.setEmail(email);
-				orderVo.setOrderPrice(orderPrice);
-				orderVo.setAddress(address);
+				OrderBookVo orderBookVo = new OrderBookVo();
 				
-				list.add(orderVo);
+				orderBookVo.setBookNo(bookNo);
+				orderBookVo.setBookTitle(bookTitle);
+				orderBookVo.setStock(stock);
+				
+				list.add(orderBookVo);
 			}
 			return list;
 		} catch (SQLException e) {
@@ -119,42 +115,6 @@ public class OrderDao {
 				}
 				if (stmt != null) {
 					stmt.close();
-				}
-				if (conn != null) {
-					conn.close();
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
-
-	}
-
-	
-	public boolean update(OrderVo orderVo) {
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-
-		try {
-			conn = getConnection();
-			// 3. be ready statement 쿼리를 날리지 않고 default값으로 준비 시켜 놓는다.
-			String sql = "update book set no=?, title =?, price=?, catergoryNo=? where no=?";
-			pstmt = conn.prepareStatement(sql);
-
-			/**/
-
-			int count = pstmt.executeUpdate();
-
-			return (count == 1);
-
-		} catch (SQLException e) {
-			System.out.println("error" + e);
-			return false;
-		} finally {
-			/* 자원정리 */
-			try { // open의 반대순으로 정리
-				if (pstmt != null) {
-					pstmt.close();
 				}
 				if (conn != null) {
 					conn.close();
